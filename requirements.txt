@@ -1,9 +1,4 @@
 streamlit
 pandas
-numpy
-plotly
-yfinance
-openpyxlstreamlit
-pandas
 plotly
 openpyxl
