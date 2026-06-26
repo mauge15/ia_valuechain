@@ -3,6 +3,10 @@ name: Update Company Radar
 on:
   workflow_dispatch:
 
+  schedule:
+    - cron: "30 7 * * *"
+      timezone: "Europe/Madrid"
+
 permissions:
   contents: write
 
