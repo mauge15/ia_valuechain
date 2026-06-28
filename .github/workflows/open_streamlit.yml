@@ -1,0 +1,23 @@
+name: Keep Streamlit Awake
+
+on:
+  schedule:
+    # Cada 6 horas
+    - cron: "0 */6 * * *"
+
+  # Permite ejecutarlo manualmente para probarlo
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Visit Streamlit app
+        run: |
+          curl --fail \
+               --location \
+               --max-time 60 \
+               --retry 3 \
+               --user-agent "Mozilla/5.0" \
+               https://iavaluechain.streamlit.app/
