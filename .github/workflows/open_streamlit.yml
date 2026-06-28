@@ -14,13 +14,11 @@ jobs:
 
     steps:
       - name: Visit Streamlit app
-        run:
-          - name: Visit Streamlit app
-  run: |
-    curl --fail \
-         --location \
-         --max-redirs 10 \
-         --max-time 60 \
-         --retry 3 \
-         --user-agent "Mozilla/5.0" \
-         https://iavaluechain.streamlit.app/
+        run: |
+          curl --fail \
+           --location \
+           --max-redirs 10 \
+           --max-time 60 \
+           --retry 3 \
+           --user-agent "Mozilla/5.0" \
+           https://iavaluechain.streamlit.app/
