@@ -2,10 +2,7 @@ name: Keep Streamlit Awake
 
 on:
   schedule:
-    # Cada 6 horas
     - cron: "0 */6 * * *"
-
-  # Permite ejecutarlo manualmente para probarlo
   workflow_dispatch:
 
 jobs:
@@ -13,12 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Visit Streamlit app
+      - name: Check Streamlit health
         run: |
-          curl --fail \
-           --location \
-           --max-redirs 10 \
-           --max-time 60 \
-           --retry 3 \
-           --user-agent "Mozilla/5.0" \
-           "https://iavaluechain.streamlit.app/_stcore/health"
+          curl \
+            --silent \
+            --show-error \
+            --max-time 60 \
+            --output response.txt \
+            --write-out "HTTP %{http_code}\n" \
+            "https://iavaluechain.streamlit.app/_stcore/health"
+
+          cat response.txt
