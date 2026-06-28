@@ -428,6 +428,7 @@ table_columns = [
     "sub_category",
     "market_cap_bn",
     "distance_from_52w_high",
+    "index_memberships"
 ]
 
 # 5. Nos quedamos solo con las columnas existentes

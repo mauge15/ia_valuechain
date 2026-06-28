@@ -1,0 +1,45 @@
+name: Update Company Radar
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-radar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pandas numpy yfinance openpyxl
+
+      - name: Run radar
+        run: python data_ia_stocks.py
+
+      - name: Check generated file
+        run: ls -la
+
+      - name: Upload Excel
+        uses: actions/upload-artifact@v4
+        with:
+          name: company-radar-output
+          path: company_radar_output.xlsx
+
+      - name: Commit updated output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add company_radar_output.xlsx
+          git diff --cached --quiet || git commit -m "Update company radar"
+          git push
