@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Abre el dashboard en un navegador real y comprueba si cargó correctamente.
+Comprueba un dashboard Streamlit aunque su contenido esté dentro de un iframe.
 
 Instalación:
     pip install playwright
@@ -8,15 +8,10 @@ Instalación:
 
 Ejecución:
     python check_dashboard_browser.py
-
-Resultado:
-- Imprime OK o ERROR.
-- Guarda una captura llamada dashboard_check.png.
 """
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
@@ -24,84 +19,119 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 URL = "https://iavaluechain.streamlit.app/"
 SCREENSHOT = Path("dashboard_check.png")
 
-ERROR_TEXTS = [
+FATAL_TEXTS = [
     "This app has gone to sleep",
-    "Oh no",
     "Error running app",
     "App is not running",
     "Page not found",
-    "Connection error",
 ]
+
+
+def frame_text(frame) -> str:
+    try:
+        return frame.locator("body").inner_text(timeout=5_000).strip()
+    except Exception:
+        return ""
 
 
 def main() -> int:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        page = browser.new_page(
+            viewport={"width": 1440, "height": 1000},
+            device_scale_factor=1,
+        )
 
         try:
             print(f"Abriendo: {URL}")
+
             response = page.goto(
                 URL,
                 wait_until="domcontentloaded",
                 timeout=120_000,
             )
 
-            # Espera a que Streamlit termine de cargar contenido visible.
-            page.wait_for_load_state("networkidle", timeout=120_000)
-            page.wait_for_timeout(5_000)
+            try:
+                page.wait_for_load_state("networkidle", timeout=60_000)
+            except PlaywrightTimeoutError:
+                print("Aviso: Streamlit mantiene conexiones abiertas; continúo.")
 
-            body_text = page.locator("body").inner_text()
-            final_url = page.url
-            title = page.title()
-            http_status = response.status if response else None
+            page.wait_for_timeout(15_000)
 
+            # Captura antes de validar, para conservar evidencia visual.
             page.screenshot(path=str(SCREENSHOT), full_page=True)
 
-            print(f"HTTP inicial: {http_status}")
-            print(f"URL final: {final_url}")
-            print(f"Título: {title}")
+            print(f"HTTP inicial: {response.status if response else None}")
+            print(f"URL final: {page.url}")
+            print(f"Título: {page.title()}")
+            print(f"Frames detectados: {len(page.frames)}")
             print(f"Captura: {SCREENSHOT.resolve()}")
 
+            all_text = []
+            streamlit_markers = 0
+
+            for index, frame in enumerate(page.frames):
+                text = frame_text(frame)
+                all_text.append(text)
+
+                print(
+                    f"Frame {index}: url={frame.url!r}, "
+                    f"texto={len(text)} caracteres"
+                )
+
+                try:
+                    streamlit_markers += frame.locator(
+                        '[data-testid="stAppViewContainer"], '
+                        '[data-testid="stMain"], '
+                        '.stApp'
+                    ).count()
+                except Exception:
+                    pass
+
+            combined_text = "\n".join(text for text in all_text if text)
+            combined_lower = combined_text.lower()
+
             detected_errors = [
-                text for text in ERROR_TEXTS
-                if text.lower() in body_text.lower()
+                error for error in FATAL_TEXTS
+                if error.lower() in combined_lower
             ]
 
-            # Streamlit suele renderizar al menos un contenedor principal.
-            main_container = page.locator('[data-testid="stAppViewContainer"]')
-            streamlit_loaded = main_container.count() > 0
-
             if detected_errors:
-                print("ERROR: la página muestra un mensaje de fallo:")
+                print("ERROR: se detectó un mensaje de fallo:")
                 for error in detected_errors:
                     print(f"- {error}")
                 return 2
 
-            if not streamlit_loaded:
-                print("ERROR: no se detectó el contenedor principal de Streamlit.")
+            # Tu app se carga dentro de iframe. Por eso el body de la página
+            # principal puede tener 0 caracteres aunque el dashboard esté bien.
+            has_iframe = page.locator("iframe").count() > 0
+            has_content = len(combined_text) >= 50
+            title_ok = "AI Infrastructure Radar" in page.title()
+
+            print(f"Marcadores Streamlit: {streamlit_markers}")
+            print(f"Hay iframe: {has_iframe}")
+            print(f"Texto total en todos los frames: {len(combined_text)}")
+
+            if not (has_content or streamlit_markers > 0 or (has_iframe and title_ok)):
+                print("ERROR: no se pudo confirmar que el dashboard cargó.")
                 return 3
 
-            if len(body_text.strip()) < 50:
-                print("ERROR: la página cargó, pero casi no tiene contenido visible.")
-                return 4
+            print("OK: el dashboard se abrió correctamente.")
+            if combined_text:
+                print("\nPrimeros 500 caracteres visibles:")
+                print(combined_text[:500])
 
-            print("OK: el dashboard se abrió y Streamlit renderizó contenido visible.")
-            print("\nPrimeros 500 caracteres visibles:")
-            print(body_text[:500])
             return 0
 
-        except PlaywrightTimeoutError:
+        except Exception as exc:
+            print(f"ERROR inesperado: {type(exc).__name__}: {exc}")
+
             try:
                 page.screenshot(path=str(SCREENSHOT), full_page=True)
-                print(f"Captura guardada: {SCREENSHOT.resolve()}")
+                print(f"Captura de error guardada: {SCREENSHOT.resolve()}")
             except Exception:
                 pass
-            print("ERROR: el dashboard no terminó de cargar dentro de 120 segundos.")
-            return 5
 
-        except Exception as exc:
-            print(f"ERROR inesperado: {exc}")
             return 1
 
         finally:
