@@ -258,6 +258,18 @@ def main():
 
     output_df = pd.DataFrame(results)
 
+    portfolio_df = output_df[
+    output_df["selected_portfolio"] == 1].copy()
+    portfolio_df["portfolio_weight"] = 1 / len(portfolio_df)
+    portfolio_ytd_return = portfolio_df["return_ytd"].mean()
+    portfolio_1y_return = portfolio_df["return_1y"].mean()
+    portfolio_6m_return = portfolio_df["return_6m"].mean()
+    portfolio_3m_return = portfolio_df["return_3m"].mean()
+    portfolio_df["ytd_contribution"] = (
+    portfolio_df["portfolio_weight"]
+    * portfolio_df["return_ytd"])
+
+
     sort_columns = ["ai_chain_category", "momentum_score"]
 
     existing_sort_columns = [
@@ -288,6 +300,24 @@ def main():
 
     with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
         output_df.to_excel(writer, sheet_name="company_radar", index=False)
+        portfolio_df.to_excel(writer,sheet_name="selected_portfolio",index=False)
+        portfolio_summary = pd.DataFrame({
+            "metric": [
+                "Number of companies",
+                "Weight per company",
+                "Portfolio YTD return",
+                "Portfolio 1Y return",
+            ],
+            "value": [
+                len(portfolio_df),
+                1 / len(portfolio_df),
+                portfolio_df["return_ytd"].mean(),
+                portfolio_df["return_1y"].mean(),
+            ],
+        })
+
+        portfolio_summary.to_excel(writer,sheet_name="portfolio_summary",index=False)
+
 
         if "market_cap_usd" in output_df.columns:
             output_df["market_cap_usd_bn"] = output_df["market_cap_usd"] / 1_000_000_000
