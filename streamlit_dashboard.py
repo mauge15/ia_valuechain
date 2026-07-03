@@ -342,6 +342,40 @@ with tab_radar:
         use_container_width=True
     )
 
+    # Other subheader
+    #
+    #
+
+    category_summary = pd.read_excel(
+    "company_radar_output.xlsx",
+    sheet_name="category_summary")
+
+    st.subheader("YTD Return by sector")
+
+    fig_sector_ytd = px.bar(
+        category_summary.sort_values("mcap_weighted_ytd_return", ascending=True),
+        x="mcap_weighted_ytd_return",
+        y="ai_chain_category",
+        orientation="h",
+        text="mcap_weighted_ytd_return",
+        title="YTD return by sector"
+    )
+
+    fig_sector_ytd.update_traces(
+        texttemplate="%{text:.1%}",
+        textposition="outside"
+    )
+
+    fig_sector_ytd.update_layout(
+        xaxis_title="YTD Return",
+        yaxis_title="",
+        xaxis_tickformat=".0%",
+        showlegend=False,
+        height=max(400, len(category_summary) * 45)
+    )
+
+    st.plotly_chart(fig_sector_ytd, use_container_width=True)
+
     # --------------------------------------------------
     # Company map
     # --------------------------------------------------
